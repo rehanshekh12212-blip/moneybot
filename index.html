@@ -1,111 +1,60 @@
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MoneyBot AI</title>
-<style>
-*{box-sizing:border-box}
-body{margin:0;background:#080d18;color:#f5f7ff;font-family:Arial,sans-serif}
-header{padding:25px 20px;background:#111a2b;border-bottom:1px solid #26334b}
-.logo{font-size:25px;font-weight:800;color:#54e6a0}
-.sub{color:#9ba9bf;font-size:13px;margin-top:7px}
-main{padding:18px;max-width:650px;margin:auto}
-h2{font-size:18px;margin:22px 0 12px}
-.card{background:#141e30;border:1px solid #293851;border-radius:15px;padding:17px;margin-bottom:13px}
-.balance{font-size:29px;font-weight:bold;color:#54e6a0;margin:10px 0}
-.small{font-size:13px;color:#9ba9bf;line-height:1.6}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.stat{background:#141e30;border-radius:12px;padding:15px}
-.stat b{display:block;font-size:22px;margin-top:8px}
-button{border:0;border-radius:10px;background:#54e6a0;color:#07130d;font-weight:bold;padding:14px;width:100%;font-size:15px;cursor:pointer}
-button.secondary{background:#263750;color:white}
-.opportunity{border-bottom:1px solid #293851;padding:13px 0}
-.opportunity:last-child{border:0}
-.tag{color:#54e6a0;font-size:12px;font-weight:bold}
-footer{text-align:center;padding:25px;color:#75849b;font-size:12px}
-</style>
-</head>
-<body>
-<header>
-  <div class="logo">🤖 MONEYBOT AI</div>
-  <div class="sub">Your smart online business assistant</div>
-</header>
+export default async function handler(req, res) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
 
-<main>
-  <div class="card">
-    <div class="tag">YOUR BUSINESS CONTROL CENTER</div>
-    <h2>Welcome, Boss 👋</h2>
-    <div class="balance">₹0.00</div>
-    <div class="small">Starting budget · Zero investment</div>
-  </div>
+  const apiKey = process.env.GEMINI_API_KEY;
 
-  <div class="grid">
-    <div class="stat">
-      <span class="small">Opportunities found</span>
-      <b id="found">0</b>
-    </div>
-    <div class="stat">
-      <span class="small">Approved businesses</span>
-      <b id="approved">0</b>
-    </div>
-    <div class="stat">
-      <span class="small">Total earnings</span>
-      <b>₹0</b>
-    </div>
-    <div class="stat">
-      <span class="small">Current expenses</span>
-      <b>₹0</b>
-    </div>
-  </div>
+  if (!apiKey) {
+    return res.status(500).json({
+      error: "Gemini API key is not configured in Vercel."
+    });
+  }
 
-  <h2>🔎 AI Opportunity Scanner</h2>
-  <div class="card">
-    <p class="small">Find legal online business ideas that can be started with zero budget. Opportunities will need verification before execution.</p>
-    <button onclick="scan()">START OPPORTUNITY SCAN</button>
-    <p class="small" id="status">Scanner is waiting for you.</p>
-  </div>
+  try {
+    const response = await fetch(
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-goog-api-key": apiKey
+        },
+        body: JSON.stringify({
+          contents: [{
+            parts: [{
+              text: "You are MoneyBot AI, a cautious online business research assistant for a user in India with a zero-rupee starting budget. Find legal, realistic online business opportunities. Use Google Search to research current opportunities, demand, competition, free starting tools and eligibility where possible. Never promise income. Clearly separate verified facts from estimates. Include risks, time required, how to get the first customer, and whether any costs or payment fees may arise. Recommend only options that can begin without upfront spending. Give a concise, useful report in simple Hindi. Do not suggest scams, spam, fake reviews, gambling, trading or guaranteed returns."
+            }]
+          }],
+          tools: [{ google_search: {} }]
+        })
+      }
+    );
 
-  <h2>💡 Sample opportunities</h2>
-  <div class="card" id="results">
-    <div class="opportunity">
-      <div class="tag">IDEA 01 · DIGITAL SERVICES</div>
-      <b>Digital product services</b>
-      <p class="small">Create useful digital templates and offer them to potential customers. Check demand and free distribution options first.</p>
-    </div>
-    <div class="opportunity">
-      <div class="tag">IDEA 02 · ONLINE SELLING</div>
-      <b>Affiliate marketing</b>
-      <p class="small">Promote legitimate products and earn commission on qualifying sales. Requires an audience and approved affiliate account.</p>
-    </div>
-    <div class="opportunity">
-      <div class="tag">IDEA 03 · CONTENT</div>
-      <b>Original digital content</b>
-      <p class="small">Build an audience with original content and explore eligible monetization options.</p>
-    </div>
-  </div>
+    const data = await response.json();
 
-  <h2>🛡️ Security & approvals</h2>
-  <div class="card">
-    <p class="small">✓ Budget limit: ₹0</p>
-    <p class="small">✓ No spending without your permission</p>
-    <p class="small">✓ No fake reviews, spam or illegal methods</p>
-    <p class="small">✓ No passwords, OTPs or UPI PINs stored</p>
-    <p class="small">✓ You approve business decisions before execution</p>
-  </div>
-  <footer>MONEYBOT AI · Version 1.0 · Dashboard prototype</footer>
-</main>
+    if (!response.ok) {
+      return res.status(response.status).json({
+        error: data.error?.message || "AI request failed"
+      });
+    }
 
-<script>
-let count = 0;
-function scan(){
-  count++;
-  document.getElementById("found").textContent = count * 3;
-  document.getElementById("status").textContent =
-    "Demo scan completed. 3 sample ideas displayed. Live internet research is not connected yet.";
-  alert("Demo scan complete! Live AI research will be connected in the next development stage.");
+    const report =
+      data.candidates?.[0]?.content?.parts
+        ?.map(part => part.text || "")
+        .join("\n")
+        .trim();
+
+    return res.status(200).json({
+      success: true,
+      report: report || "AI did not return a report."
+    });
+
+  } catch (error) {
+    return res.status(500).json({
+      error: "Server error. Please try again."
+    });
+  }
 }
-</script>
-</body>
-</html>
+
